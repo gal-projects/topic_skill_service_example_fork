@@ -1,4 +1,4 @@
-name: Build und deploy nach GKE
+name: Build and deploy to GKE
 
 on:
   push:
@@ -70,12 +70,6 @@ jobs:
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
-
-      # Optional: Debug – wer bin ich?
-      # - name: Debug auth
-      #   run: |
-      #     gcloud auth list
-      #     gcloud config get-value project
 
       # 3) GKE Credentials holen
       - name: Get GKE credentials
