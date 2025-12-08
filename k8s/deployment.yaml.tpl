@@ -21,25 +21,13 @@ spec:
             - containerPort: 5000
               name: http
           env:
-            # Gunicorn port used in entrypoint (defaults to 5000)
             - name: PORT
               value: "5000"
-            # DATABASE_URL used by entrypoint + app.py
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: app-db-url
                   key: DATABASE_URL
-            # Optional: override workers if you want
-            # - name: WORKERS
-            #   value: "2"
-          resources:
-            requests:
-              cpu: "250m"
-              memory: "256Mi"
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
           readinessProbe:
             httpGet:
               path: /healthz
@@ -52,3 +40,10 @@ spec:
               port: http
             initialDelaySeconds: 30
             periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
