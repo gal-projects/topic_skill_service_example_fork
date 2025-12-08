@@ -46,7 +46,6 @@ jobs:
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       GKE_CLUSTER: ${{ secrets.GKE_CLUSTER }}
       GKE_LOCATION: ${{ secrets.GKE_LOCATION }}
-      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
       # K8s Namespace für diese:n Student:in
       K8S_NAMESPACE: ${{ secrets.K8S_NAMESPACE }}
@@ -58,13 +57,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up gcloud with JSON key
+      # 1) Auth bei Google Cloud mit Service-Account-JSON
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      # 2) gcloud installieren (Credentials kommen schon aus auth@v2)
+      - name: Set up gcloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
-          service_account_key: ${{ env.GCP_SA_KEY }}
-          export_default_credentials: true
+          install_components: gke-gcloud-auth-plugin
 
+      # Optional: Debug – wer bin ich?
+      # - name: Debug auth
+      #   run: |
+      #     gcloud auth list
+      #     gcloud config get-value project
+
+      # 3) GKE Credentials holen
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v2
         with:
@@ -72,13 +85,16 @@ jobs:
           cluster_name: ${{ env.GKE_CLUSTER }}
           location: ${{ env.GKE_LOCATION }}
 
+      # 4) envsubst installieren
       - name: Install envsubst
         run: sudo apt-get update && sudo apt-get install -y gettext-base
 
+      # 5) Namespace anlegen (falls nicht vorhanden)
       - name: Create namespace if not exists
         run: |
           kubectl create namespace "$K8S_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
+      # 6) K8s-Templates anwenden (mit Namespace + Image ersetzt)
       - name: Apply Kubernetes manifests
         run: |
           ls k8s
@@ -87,6 +103,7 @@ jobs:
             envsubst < "$file" | kubectl apply -f -
           done
 
+      # 7) Auf externe IP des LoadBalancers warten
       - name: Wait for LoadBalancer external IP
         id: get-ip
         run: |
@@ -104,6 +121,7 @@ jobs:
           echo "FEHLER: Keine externe IP erhalten!"
           exit 1
 
+      # 8) Am Ende die URLs ausgeben
       - name: Output service URL
         run: |
           echo "============================================================"
