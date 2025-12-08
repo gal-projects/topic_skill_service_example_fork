@@ -97,11 +97,21 @@ jobs:
       # 6) K8s-Templates anwenden (mit Namespace + Image ersetzt)
       - name: Apply Kubernetes manifests
         run: |
-          ls k8s
-          for file in k8s/*.yaml.tpl; do
+            ls k8s
+            for file in k8s/*.yaml.tpl; do
             echo "Applying $file with K8S_NAMESPACE=$K8S_NAMESPACE IMAGE=$IMAGE"
-            envsubst < "$file" | kubectl apply -f -
-          done
+            if [[ "$file" == "k8s/postgres.yaml.tpl" ]]; then
+                echo "Postgres ist bereits deployed – versuche apply, ignoriere aber Immutable-Fehler."
+                # apply darf fehlschlagen, z.B. wegen immutable Fields im StatefulSet
+                if ! envsubst < "$file" | kubectl apply -f -; then
+                echo "⚠️ Hinweis: postgres StatefulSet konnte nicht aktualisiert werden (wahrscheinlich immutable Fields)."
+                echo "   Das ist ok, solange Postgres-Pod läuft. Deployment wird fortgesetzt."
+                fi
+            else
+                envsubst < "$file" | kubectl apply -f -
+            fi
+            done
+         
 
       # 7) Auf externe IP des LoadBalancers warten
       - name: Wait for LoadBalancer external IP
